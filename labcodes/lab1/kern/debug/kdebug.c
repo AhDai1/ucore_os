@@ -302,5 +302,15 @@ print_stackframe(void) {
       *           NOTICE: the calling funciton's return addr eip  = ss:[ebp+4]
       *                   the calling funciton's ebp = ss:[ebp]
       */
+     uint32_t ebp = read_ebp();
+     uint32_t eip = read_eip();
+     for(int i = 0; i < STACKFRAME_DEPTH && eip != 0; i++){
+         cprintf("ebp:0x%08x eip:0x%08x", ebp, eip);
+        uint32_t *ptr = (uint32_t *) (ebp + 8);//由栈结构得知参数地址在ebp+8处
+        cprintf("args:0x%08x 0x%08x 0x%08x 0x%08x\n", ptr[0], ptr[1], ptr[2], ptr[4]);
+        print_debuginfo(eip - 1);
+        eip = *((uint32_t *) (ebp + 4));
+        ebp = *((uint32_t *) ebp);
+     }
 }
 
