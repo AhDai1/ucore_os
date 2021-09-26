@@ -396,6 +396,30 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
         }
    }
 #endif
+    ptep = get_pte(mm->pgdir, addr, 1);
+    if(*ptep == 0){//如果物理页是没有分配而不是被换出到外存
+        struct Page *page = pgdir_alloc_page(mm->pgdir, addr, perm);
+        if(page == NULL){
+            cprintf("pgdir_alloc_page in do_pgfault failed\n");
+            goto failed;
+        }
+    }
+    else{
+        if(swap_init_ok){//判断交换机制是否正确被初始化
+            struct Page *page = NULL;
+            if((ret = swap_in(mm, addr, &page)) != 0){
+                cprintf("swap_in in do_pgfault failed\n");
+                goto failed;
+            }//将物理页换到内存中
+            page_insert(mm->pgdir, page, addr, perm);//将物理页与虚拟页建立映射关系
+            swap_map_swappable(mm, addr, page, 1);//设置当前物理页为可交换，插入FIFO链表中
+            page->pra_vaddr = addr;
+        }
+        else{
+            cprintf("no swap_init_ok but ptep is %x, failed\n",*ptep);
+            goto failed;
+        }
+    }
    ret = 0;
 failed:
     return ret;
